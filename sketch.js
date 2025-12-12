@@ -10,54 +10,56 @@ const CONFIG = {
         highlightGlow: '#FF2B00',
         infoBox: '#ffffffff',
         infoBoxText: '#000000ff',
-        infoBoxStroke: '#000000ff',
+        infoBoxStroke: '#FF2B00',
         timeline: '#FF2B00',
         selectedContinent: '#b9b9b988'
     },
     layout: {
-        centerXRatio: 0.70, //posizione cerchio destra o sinistra
-        maxRadius: 400, //grandezza cerchio
+        centerXRatio: 0.70,
+        maxRadius: 350,
         minRadius: 31.5,
-        continentLabelOffset: 15, //distanza dal cerchio esterno dei continenti
-        europeAsiaOffset: 15, //idem a sopra ma con europa e asia, se li mettevo assieme mi rompevano il codice
+        continentLabelOffset: 15,
+        europeAsiaOffset: 15,
         infoBoxWidth: 200,
-        infoBoxHeight: 80,
+        infoBoxHeight: 70,
         bottomControlY: 100,
-        marginX: 60,
-        fontSizeControls: 36,
-        centerYOffset: 10, //posizione cerchio su o giù
+        marginX: 40,
+        fontSizeControls: 16,
+        centerYOffset: 10,
         topOffset: -20,
         leftPanelWidth: 300,
         controlButtonHeight: 50,
         controlButtonWidth: 50,
-        // DIMENSIONI PER I TESTI
-        timeframeFontSize: 30,   //dimensione time frame
-        yearFontSize: 45,        // dimensioen year
-        labelFontSize: 18,
-        // POSIZIONI SELECT TIME, YEAR E TITOLO
+        timeframeFontSize: 30,
+        yearFontSize: 30,
+        labelFontSize: 17,
         titleStartY: 60,
-        buttonStartY: 350,      
-        timeframeStartY: 650,   
-        yearStartY: 780         
+        buttonStartY: 560,
+        timeframeStartY: 600,
+        yearStartY: 710
     },
-    animation: { // NUOVA SEZIONE: parametri per le animazioni
+    animation: {
         dotEntryDuration: 800,
         dotStaggerDelay: 30,
         dotPopScale: 1.4,
         randomDelayMax: 600,
         waveDuration: 1000,
         easingFunction: 'easeOutBack',
-        // NUOVO: parametri per animazioni veloci (quando si clicca Start Animation)
         fastDotEntryDuration: 400,
-        fastRandomDelayMax: 200
+        fastRandomDelayMax: 200,
+        // Configurazione per animazione stilizzata
+        eruptionDuration: 1000, // Totale: 1 secondo
+        implosionDuration: 250, // 250ms per implodere
+        pauseDuration: 150, // 150ms di pausa drammatica
+        explosionDuration: 600, // 600ms per esplodere
+        maxExplosionScale: 100, // Quanto si espande
+        shockwaveCount: 5,
+        pulseCount: 8
     },
     centuries: [
-        { label: 'all centuries', value: null },
+        { label: 'Full range', value: null },
         { label: '4200 BC', value: -4200 },
-        { label: '3200 BC', value: -3200 },
-        { label: '2200 BC', value: -2200 },
-        { label: '1200 BC', value: -1200 },
-        { label: '200 BC', value: -200 },
+        { label: '0', value: 0 },
         { label: '800 AD', value: 800 },
         { label: '1800 AD', value: 1800 },
         { label: '1850 AD', value: 1850 },
@@ -68,19 +70,18 @@ const CONFIG = {
     ]
 };
 
-let impactLevels = []; //Variabili globali
+let impactLevels = [];
 let allImpacts = [];
 
-const CONCENTRIC_YEARS = [-4200, -3200, -2200, -1200, -200, 800, 1800, 1850, 1900, 1950, 2000, 2050];
+const CONCENTRIC_YEARS = [-4200, 0, 800, 1800, 1850, 1900, 1950, 2000, 2050];
 
-// Costanti per l'animazione
-const SELECTION_ANIMATION_DURATION = 800; // MODIFICATO: aumentato da 500 a 800ms per bagliore più visibile
-const HOVER_ANIMATION_DURATION = 300; // ms
-const CIRCLE_REVEAL_DURATION = 1500; // MODIFICATO: aumentato da 800ms a 1500ms per animazione più lenta
-// MODIFICATO: Velocità diverse per animazione manuale vs automatica
-const TIMELINE_ANIMATION_SPEED_NORMAL = 500; // Velocità normale (quando l'utente clicca manualmente)
-const TIMELINE_ANIMATION_SPEED_FAST = 800; // MODIFICATO: Velocità più lenta per Start Animation (era 200ms, ora 800ms)
-const TIMELINE_PAUSE_BETWEEN_CYCLES = 1000; // Pausa tra un ciclo e l'altro
+// Quanto durano le animazioni
+const SELECTION_ANIMATION_DURATION = 800;
+const HOVER_ANIMATION_DURATION = 300;
+const CIRCLE_REVEAL_DURATION = 1500;
+const TIMELINE_ANIMATION_SPEED_NORMAL = 500;
+const TIMELINE_ANIMATION_SPEED_FAST = 800;
+const TIMELINE_PAUSE_BETWEEN_CYCLES = 1000;
 
 // ===== STATO APPLICAZIONE =====
 let state = {
@@ -102,43 +103,67 @@ let state = {
     leftControlAreas: null,
     rightControlAreas: null,
     asiaLabelY: 0,
-    // VARIABILI PER ANIMAZIONE
+    
+    // Per le animazioni
     animationTimer: 0,
-    animationSpeed: TIMELINE_ANIMATION_SPEED_NORMAL, // MODIFICATO: usa costante
-    pauseBetweenCycles: TIMELINE_PAUSE_BETWEEN_CYCLES, // MODIFICATO: usa costante
+    animationSpeed: TIMELINE_ANIMATION_SPEED_NORMAL,
+    pauseBetweenCycles: TIMELINE_PAUSE_BETWEEN_CYCLES,
     isPausedBetweenCycles: false,
-    // VARIABILI PER I NUOVI CONTROLLI
+    
+    // Per i controlli a sinistra
     startButtonArea: null,
     timeFrameLeftArrows: null,
     timeFrameRightArrows: null,
     yearLeftArrow: null,
     yearRightArrow: null,
-    // NUOVO: gestione dinamica degli anni
+    
+    // Per gestire gli anni
     availableYears: [],
     currentYearIndex: 0,
-    // NUOVO: variabile per mostrare l'anno nel selettore senza attivare l'evidenziazione
     displayedYear: null,
-    // NUOVO: flag per tracciare se l'anno è stato attivato dall'utente
     yearActivatedByUser: false,
-    // NUOVO: mappe per le animazioni
+    
+    // Per le animazioni dei vulcani
     selectionAnimationStart: new Map(),
     hoverAnimationStart: new Map(),
-    // NUOVO: animazione per i cerchi rossi
+    
+    // Per l'animazione di apertura dei cerchi
     circleRevealStart: null,
     circleRevealProgress: 0,
-    // NUOVE VARIABILI PER ANIMAZIONE DOTS
+    
+    // Per l'animazione dei puntini
     dotAnimationStart: null,
     dotAnimationProgress: 0,
     dotAppearTimes: new Map(),
+    
+    // Per l'animazione a onde
     waveAnimationStart: null,
     waveAnimationProgress: 0,
-    // NUOVA: flag per disabilitare animazione entrata dots durante timeline
+    
+    // Controlli animazioni
     disableDotEntryAnimation: false,
-    // NUOVA: flag per indicare se usare animazioni veloci
-    useFastAnimations: false
+    useFastAnimations: false,
+    
+    // Per l'animazione di eruzione stilizzata
+    eruption: {
+        active: false,
+        phase: 'idle', // 'imploding', 'pause', 'exploding', 'complete'
+        x: 0,
+        y: 0,
+        startTime: 0,
+        volcano: null,
+        originalSize: 0,
+        currentSize: 0,
+        shockwaves: [],
+        pulses: [],
+        // Per tracciare le fasi
+        implosionStart: 0,
+        pauseStart: 0,
+        explosionStart: 0
+    }
 };
 
-// Variabile per l'immagine di sfondo radiale
+// Immagine di sfondo
 let radialBgImage;
 
 // ===== MAPPATURA CONTINENTI =====
@@ -172,13 +197,13 @@ const CONTINENT_MAP = {
 
 const CONTINENTS = ['Asia', 'Americhe', 'Europa', 'Oceania', 'Africa'];
 
-// FUNZIONE: Carica i dati CSV e l'immagine di sfondo
+// 1 - Caricamento dati
 function preload() {
     loadTable('assets/data_impatto.csv', 'csv', 'header', processTableData);
     radialBgImage = loadImage('assets/radial_bg.png');
 }
 
-// FUNZIONE: Processa i dati della tabella CSV e inizializza i dati dei vulcani
+// 2 - Processamento dati
 function processTableData(table) {
     state.volcanoData = [];
     allImpacts = [];
@@ -218,28 +243,39 @@ function processTableData(table) {
     initializeData();
 }
 
-// FUNZIONE: Inizializza i dati dopo il caricamento
+// 3 - Inizializzazione
 function initializeData() {
     state.filteredData = [...state.volcanoData];
     state.globalYearRange = getGlobalYearRange();
     calculateContinentData();
     calculateVolcanoPositions();
     calculateTimelineButtons();
-    updateAvailableYears(); // Inizializza gli anni disponibili
+    updateAvailableYears();
     
-    // Inizia l'animazione di apertura dei cerchi
     state.circleRevealStart = millis();
-    
-    // Inizia l'animazione dei dots dopo i cerchi (usando animazioni normali)
     state.dotAnimationStart = millis() + 300;
     state.dotAnimationProgress = 0;
     state.useFastAnimations = false;
     
-    // Inizializza l'animazione a onde
     state.waveAnimationStart = null;
     state.waveAnimationProgress = 0;
     
-    // Calcola i tempi di apparizione randomica per ogni dot (usando tempi normali)
+    state.eruption = {
+        active: false,
+        phase: 'idle',
+        x: 0,
+        y: 0,
+        startTime: 0,
+        volcano: null,
+        originalSize: 0,
+        currentSize: 0,
+        shockwaves: [],
+        pulses: [],
+        implosionStart: 0,
+        pauseStart: 0,
+        explosionStart: 0
+    };
+    
     state.dotAppearTimes.clear();
     state.filteredData.forEach(v => {
         let key = `${v.name}-${v.year}-${v.deaths}`;
@@ -250,20 +286,7 @@ function initializeData() {
     state.disableDotEntryAnimation = false;
 }
 
-// FUNZIONE: Setup iniziale di p5.js
-function setup() {
-    createCanvas(windowWidth, windowHeight);
-    updateLayout();
-}
-
-// FUNZIONE: Aggiorna il layout quando la finestra cambia dimensione
-function updateLayout() {
-    state.centerX = width * CONFIG.layout.centerXRatio;
-    state.centerY = height / 2 + CONFIG.layout.centerYOffset;
-    calculateTimelineButtons();
-}
-
-// FUNZIONE: Calcola la distribuzione angolare dei continenti
+// 4 - Calcolo dati continenti
 function calculateContinentData() {
     state.continentCounts = CONTINENTS.reduce((acc, cont) => {
         acc[cont] = 0;
@@ -294,26 +317,48 @@ function calculateContinentData() {
     });
 }
 
-// FUNZIONE: Calcola le posizioni angolari casuali dei vulcani
+// 5 - Calcolo posizioni vulcani
 function calculateVolcanoPositions() {
     state.volcanoPositions.clear();
     
-    state.volcanoData.forEach(v => {
+    const volcanoesByContinent = {};
+    
+    CONTINENTS.forEach(cont => {
+        volcanoesByContinent[cont] = [];
+    });
+    
+    state.filteredData.forEach(v => {
         let key = `${v.name}-${v.year}-${v.deaths}`;
-        let angles = state.continentAngles[v.continent];
-        if (angles && !state.volcanoPositions.has(key)) {
-            state.volcanoPositions.set(key, random(angles.start, angles.end));
+        if (volcanoesByContinent[v.continent]) {
+            volcanoesByContinent[v.continent].push({
+                key: key,
+                volcano: v,
+                year: v.year
+            });
         }
+    });
+    
+    CONTINENTS.forEach(cont => {
+        const angles = state.continentAngles[cont];
+        if (!angles || volcanoesByContinent[cont].length === 0) return;
+        
+        volcanoesByContinent[cont].sort((a, b) => a.year - b.year);
+        
+        const angleRange = angles.end - angles.start;
+        const angleStep = angleRange / Math.max(1, volcanoesByContinent[cont].length);
+        
+        volcanoesByContinent[cont].forEach((item, index) => {
+            const angle = angles.start + (angleStep * (index + 0.5));
+            state.volcanoPositions.set(item.key, angle);
+        });
     });
 }
 
-// NUOVA FUNZIONE: Aggiorna gli anni disponibili in base al periodo selezionato
+// 6 - Aggiornamento anni disponibili
 function updateAvailableYears() {
     if (state.selectedCentury === null) {
-        // Se nessun periodo selezionato, mostra tutti gli anni unici
         state.availableYears = [...new Set(state.volcanoData.map(v => v.year))].sort((a, b) => a - b);
     } else {
-        // Se periodo selezionato, mostra solo gli anni in quel periodo
         const centuryIndex = CONCENTRIC_YEARS.indexOf(state.selectedCentury);
         if (centuryIndex !== -1 && centuryIndex < CONCENTRIC_YEARS.length - 1) {
             const startYear = CONCENTRIC_YEARS[centuryIndex];
@@ -335,29 +380,23 @@ function updateAvailableYears() {
         }
     }
     
-    // Quando cambiamo periodo, resettiamo l'evidenziazione
-    // Ma manteniamo l'anno da mostrare nel selettore (il primo disponibile)
     state.timelineYear = null;
     state.displayedYear = state.availableYears.length > 0 ? state.availableYears[0] : null;
     state.currentYearIndex = 0;
-    state.yearActivatedByUser = false; // Resetta il flag
+    state.yearActivatedByUser = false;
     
-    // Ferma l'animazione quando si cambia periodo
     state.isPlaying = false;
     state.animationTimer = 0;
     state.isPausedBetweenCycles = false;
-    state.useFastAnimations = false; // MODIFICATO: reset animazioni veloci
+    state.useFastAnimations = false;
     
-    // Resetta le animazioni dei vulcani
     state.selectionAnimationStart.clear();
     state.hoverAnimationStart.clear();
     
-    // Resetta animazione dots (usando animazioni normali)
     state.dotAnimationStart = millis();
     state.dotAnimationProgress = 0;
     state.disableDotEntryAnimation = false;
     
-    // Calcola i tempi di apparizione randomica per ogni dot (usando tempi normali)
     state.dotAppearTimes.clear();
     state.filteredData.forEach(v => {
         let key = `${v.name}-${v.year}-${v.deaths}`;
@@ -366,7 +405,7 @@ function updateAvailableYears() {
     });
 }
 
-// FUNZIONE: Calcola il raggio in base al livello di impatto
+// 7 - Calcolo raggio in base all'impatto
 function getRadiusForImpact(impact) {
     if (impactLevels.length <= 1) return CONFIG.layout.minRadius;
     
@@ -379,13 +418,10 @@ function getRadiusForImpact(impact) {
     return map(normalized, 0, 1, CONFIG.layout.maxRadius, CONFIG.layout.minRadius);
 }
 
-// FUNZIONE: Disegna i cerchi concentrici dei livelli di impatto
+// 8 - Disegno cerchi di impatto
 function drawImpactCircles() {
-    // Indici speciali: 0, 4, 8, 12 (corrispondenti ai cerchi 1, 5, 9, 13 partendo dall'esterno)
-    // NOTA: il cerchio 16 (indice 15) NON è incluso
     const specialIndices = [0, 4, 8, 12].filter(index => index < impactLevels.length);
     
-    // Aggiorna l'animazione di apertura dei cerchi
     if (state.circleRevealStart !== null) {
         const elapsed = millis() - state.circleRevealStart;
         state.circleRevealProgress = constrain(elapsed / CIRCLE_REVEAL_DURATION, 0, 1);
@@ -400,45 +436,38 @@ function drawImpactCircles() {
                         CONFIG.layout.maxRadius, CONFIG.layout.minRadius);
         noFill();
         
-        // Determina se è un cerchio speciale
         const isSpecial = specialIndices.includes(i);
         
         if (isSpecial) {
-            // Animazione di apertura per i cerchi speciali
             let animatedRadius = radius;
-            let animatedStrokeWeight = 2;
+            let animatedStrokeWeight = 2.75;
             let animatedAlpha = 255;
             
             if (state.circleRevealProgress < 1) {
-                // Calcola progresso per questo cerchio (i cerchi si aprono dall'interno verso l'esterno)
                 const circleProgress = constrain((state.circleRevealProgress * impactLevels.length - i) / 4, 0, 1);
                 animatedRadius = radius * circleProgress;
-                animatedStrokeWeight = 2 * circleProgress;
+                animatedStrokeWeight = 2.75 * circleProgress;
                 animatedAlpha = 255 * circleProgress;
             }
             
-            stroke(255, 43, 0, animatedAlpha); // rosso con animazione alpha
-            strokeWeight(animatedStrokeWeight); // più spesso con animazione
+            stroke(255, 43, 0, animatedAlpha);
+            strokeWeight(animatedStrokeWeight);
             ellipse(0, 0, animatedRadius * 2);
             
-            // Se l'animazione è completa, aggiungi etichetta
             if (state.circleRevealProgress >= 1) {
-                // Il numero del cerchio partendo da 1
                 const circleNumber = i + 1;
-                // Calcola il punto sull'asse Y (in alto)
                 const labelX = 0;
-                const labelY = -radius - 15; // 15 pixel sopra il cerchio
+                const labelY = -radius - 15;
                 
                 push();
                 fill(CONFIG.colors.accent);
                 noStroke();
-                textSize(14);
+                textSize(16);
                 textAlign(CENTER, CENTER);
                 text(circleNumber, labelX, labelY);
                 pop();
             }
         } else {
-            // Cerchi normali con animazione
             let animatedRadius = radius;
             if (state.circleRevealProgress < 1) {
                 const circleProgress = constrain((state.circleRevealProgress * impactLevels.length - i) / 4, 0, 1);
@@ -452,7 +481,7 @@ function drawImpactCircles() {
     }
 }
 
-// FUNZIONE: Calcola le posizioni dei bottoni della timeline
+// 9 - Calcolo bottoni timeline
 function calculateTimelineButtons() {
     state.timelineButtons = [];
     const tlY = height - CONFIG.layout.bottomControlY;
@@ -482,7 +511,7 @@ function calculateTimelineButtons() {
     });
 }
 
-// FUNZIONE: Applica i filtri in base al secolo e continente selezionati
+// 10 - Applicazione filtri
 function applyFilters() {
     state.filteredData = state.volcanoData.filter(v => {
         let centuryMatch = true;
@@ -509,9 +538,9 @@ function applyFilters() {
     });
 
     calculateContinentData();
-    updateAvailableYears(); // Aggiorna gli anni disponibili dopo il filtro
+    calculateVolcanoPositions();
+    updateAvailableYears();
     
-    // MODIFICATO: Inizia animazione dots quando si applicano filtri (usando animazioni normali)
     if (state.selectedCentury !== null || state.selectedContinent !== null) {
         state.useFastAnimations = false;
         state.dotAnimationStart = millis();
@@ -526,7 +555,7 @@ function applyFilters() {
     }
 }
 
-// FUNZIONE: Ottiene il range globale di anni dai dati
+// 11 - Calcolo range anni
 function getGlobalYearRange() {
     const years = state.volcanoData.map(v => v.year);
     return {
@@ -535,17 +564,14 @@ function getGlobalYearRange() {
     };
 }
 
-// FUNZIONE: Gestisce l'animazione della timeline
+// 12 - Animazione timeline
 function updateAnimation() {
     if (!state.isPlaying || state.availableYears.length === 0) return;
     
-    // Se l'anno non è stato attivato dall'utente, lo attiviamo ora
     if (!state.yearActivatedByUser) {
         state.yearActivatedByUser = true;
         state.timelineYear = state.availableYears[state.currentYearIndex];
-        // MODIFICATO: aggiorna anche displayedYear
         state.displayedYear = state.availableYears[state.currentYearIndex];
-        // Resetta le animazioni di selezione
         state.selectionAnimationStart.clear();
     }
     
@@ -556,7 +582,6 @@ function updateAnimation() {
             state.isPausedBetweenCycles = false;
             state.currentYearIndex = 0;
             state.timelineYear = state.availableYears[0];
-            // MODIFICATO: aggiorna anche displayedYear
             state.displayedYear = state.availableYears[0];
         }
         return;
@@ -575,12 +600,11 @@ function updateAnimation() {
         }
     }
     
-    // MODIFICATO: Aggiorna sia timelineYear che displayedYear durante l'animazione
     state.timelineYear = state.availableYears[state.currentYearIndex];
     state.displayedYear = state.availableYears[state.currentYearIndex];
 }
 
-// NUOVA FUNZIONE: Aggiorna le animazioni dei dots
+// 13 - Aggiornamento animazioni punti
 function updateDotAnimations() {
     if (state.isPlaying) {
         state.disableDotEntryAnimation = true;
@@ -611,7 +635,7 @@ function updateDotAnimations() {
     }
 }
 
-// NUOVA FUNZIONE: Inizia animazioni veloci per i dots
+// 14 - Animazioni veloci punti
 function startFastDotAnimations() {
     state.useFastAnimations = true;
     state.dotAnimationStart = millis();
@@ -625,34 +649,319 @@ function startFastDotAnimations() {
     });
 }
 
-// NUOVA FUNZIONE: Trigger animazione a onde
+// 15 - Animazione onde
 function triggerWaveAnimation() {
     state.waveAnimationStart = millis();
     state.waveAnimationProgress = 0;
 }
 
-// FUNZIONE: Loop principale di disegno
+// 16 - Attiva eruzione vulcanica STILIZZATA
+function triggerVolcanoEruption(volcano, x, y) {
+    console.log("💥 ANIMAZIONE STILIZZATA per:", volcano.name);
+    
+    // Determina la dimensione originale in base all'impatto
+    const originalSize = map(volcano.impact, 1, 15, 5, 15);
+    
+    state.eruption = {
+        active: true,
+        phase: 'imploding',
+        x: x,
+        y: y,
+        startTime: millis(),
+        volcano: volcano,
+        originalSize: originalSize,
+        currentSize: originalSize,
+        shockwaves: [],
+        pulses: [],
+        implosionStart: millis(),
+        pauseStart: 0,
+        explosionStart: 0
+    };
+    
+    // Crea onde d'urto per l'esplosione
+    for (let i = 0; i < CONFIG.animation.shockwaveCount; i++) {
+        state.eruption.shockwaves.push({
+            startTime: 0, // Sarà impostato durante l'esplosione
+            size: 0,
+            maxSize: random(50, 100),
+            thickness: random(1, 3),
+            delay: i * 50
+        });
+    }
+    
+    // Crea impulsi radiali
+    for (let i = 0; i < CONFIG.animation.pulseCount; i++) {
+        state.eruption.pulses.push({
+            angle: random(TWO_PI),
+            distance: 0,
+            maxDistance: random(50, 200),
+            speed: random(3, 8),
+            size: random(2, 6),
+            active: false
+        });
+    }
+    
+    state.isPlaying = false;
+    state.waveAnimationStart = null;
+}
+
+// 17 - Aggiorna animazione eruzione stilizzata
+function updateEruptionAnimation() {
+    if (!state.eruption.active) return;
+    
+    const currentTime = millis();
+    const totalElapsed = currentTime - state.eruption.startTime;
+    
+    // Gestione delle fasi
+    if (state.eruption.phase === 'imploding') {
+        const implosionElapsed = currentTime - state.eruption.implosionStart;
+        const implosionProgress = constrain(implosionElapsed / CONFIG.animation.implosionDuration, 0, 1);
+        
+        // Implosione: si riduce fino al 10% della dimensione originale
+        state.eruption.currentSize = state.eruption.originalSize * (1 - implosionProgress * 0.9);
+        
+        if (implosionProgress >= 1) {
+            state.eruption.phase = 'pause';
+            state.eruption.pauseStart = currentTime;
+            console.log("⏸️ PAUSA DRAMMATICA");
+        }
+        
+    } else if (state.eruption.phase === 'pause') {
+        const pauseElapsed = currentTime - state.eruption.pauseStart;
+        
+        if (pauseElapsed >= CONFIG.animation.pauseDuration) {
+            state.eruption.phase = 'exploding';
+            state.eruption.explosionStart = currentTime;
+            console.log("💥 ESPLOSIONE!");
+            
+            // Attiva le onde d'urto
+            for (let wave of state.eruption.shockwaves) {
+                wave.startTime = currentTime + wave.delay;
+            }
+            
+            // Attiva gli impulsi
+            for (let pulse of state.eruption.pulses) {
+                pulse.active = true;
+            }
+        }
+        
+    } else if (state.eruption.phase === 'exploding') {
+        const explosionElapsed = currentTime - state.eruption.explosionStart;
+        const explosionProgress = constrain(explosionElapsed / CONFIG.animation.explosionDuration, 0, 1);
+        
+        // Espansione radicale
+        state.eruption.currentSize = state.eruption.originalSize * (1 + explosionProgress * CONFIG.animation.maxExplosionScale);
+        
+        // Aggiorna onde d'urto
+        for (let wave of state.eruption.shockwaves) {
+            if (wave.startTime > 0 && currentTime >= wave.startTime) {
+                const waveElapsed = currentTime - wave.startTime;
+                if (waveElapsed < 400) {
+                    const waveProgress = constrain(waveElapsed / 400, 0, 1);
+                    wave.size = waveProgress * wave.maxSize;
+                }
+            }
+        }
+        
+        // Aggiorna impulsi
+        for (let pulse of state.eruption.pulses) {
+            if (pulse.active) {
+                pulse.distance = min(pulse.distance + pulse.speed, pulse.maxDistance);
+            }
+        }
+        
+        if (explosionProgress >= 1) {
+            state.eruption.phase = 'complete';
+            console.log("✅ ANIMAZIONE COMPLETATA");
+            
+            // Reindirizza alla pagina di dettaglio
+            setTimeout(() => {
+                const v = state.eruption.volcano;
+                const url = `detail.html?name=${encodeURIComponent(v.name)}&year=${v.year}&impact=${v.impact}`;
+                console.log("Reindirizzamento a:", url);
+                window.location.href = url;
+            }, 100);
+        }
+    }
+}
+
+// 18 - Disegna animazione eruzione STILIZZATA
+function drawEruption() {
+    if (!state.eruption.active) return;
+    
+    push();
+    
+    const currentTime = millis();
+    
+    // 1. PUNTINO CENTRALE (con animazione)
+    if (state.eruption.phase === 'imploding' || state.eruption.phase === 'pause') {
+        // Durante implosione e pausa, mostra il puntino che si riduce
+        const size = state.eruption.currentSize;
+        
+        // Puntino principale (nero con bordo rosso)
+        fill(0);
+        stroke(255, 43, 0);
+        strokeWeight(2);
+        circle(state.eruption.x, state.eruption.y, size);
+        
+        // Effetto di vibrazione durante la pausa
+        if (state.eruption.phase === 'pause') {
+            const pulseTime = currentTime - state.eruption.pauseStart;
+            const pulseSize = sin(pulseTime * 0.05) * 3;
+            
+            noFill();
+            stroke(255, 43, 0, 100);
+            strokeWeight(1);
+            circle(state.eruption.x, state.eruption.y, size + pulseSize);
+        }
+        
+    } else if (state.eruption.phase === 'exploding') {
+        // Durante l'esplosione, il puntino diventa il centro dell'esplosione
+        
+        // 2. CENTRO DELL'ESPLOSIONE (bianco puro)
+        const explosionProgress = constrain((currentTime - state.eruption.explosionStart) / CONFIG.animation.explosionDuration, 0, 1);
+        const centerAlpha = 255 * (1 - explosionProgress * 0.7);
+        
+        fill(255, 255, 255, centerAlpha);
+        noStroke();
+        circle(state.eruption.x, state.eruption.y, state.eruption.currentSize * 0.3);
+        
+        // 3. ANELLO DI ESPANSIONE PRINCIPALE
+        noFill();
+        stroke(255, 43, 0, 200 * (1 - explosionProgress));
+        strokeWeight(4);
+        circle(state.eruption.x, state.eruption.y, state.eruption.currentSize);
+        
+        // 4. ONDE D'URTO SECONDARIE
+        for (let wave of state.eruption.shockwaves) {
+            if (wave.startTime > 0 && currentTime >= wave.startTime) {
+                const waveElapsed = currentTime - wave.startTime;
+                if (waveElapsed < 400) {
+                    const waveProgress = waveElapsed / 400;
+                    const alpha = 150 * (1 - waveProgress);
+                    
+                    // Onda d'urto principale
+                    stroke(255, 43, 0, alpha);
+                    strokeWeight(wave.thickness);
+                    circle(state.eruption.x, state.eruption.y, wave.size);
+                    
+                    // Onda secondaria più sottile
+                    stroke(255, 255, 255, alpha * 0.6);
+                    strokeWeight(wave.thickness * 0.5);
+                    circle(state.eruption.x, state.eruption.y, wave.size * 1.2);
+                }
+            }
+        }
+        
+        // 5. IMPULSI RADIALI (linee che si irradiano dal centro)
+        for (let pulse of state.eruption.pulses) {
+            if (pulse.active) {
+                const endX = state.eruption.x + cos(pulse.angle) * pulse.distance;
+                const endY = state.eruption.y + sin(pulse.angle) * pulse.distance;
+                
+                // Linea radiale
+                stroke(255, 43, 0, 150 * (1 - pulse.distance / pulse.maxDistance));
+                strokeWeight(1);
+                line(state.eruption.x, state.eruption.y, endX, endY);
+                
+                // Punto finale
+                fill(255, 255, 255, 200 * (1 - pulse.distance / pulse.maxDistance));
+                noStroke();
+                circle(endX, endY, pulse.size);
+            }
+        }
+        
+        // 6. ESPANSIONE RADIALE GRADUALE (cerchi multipli)
+        const expansionCount = 3;
+        for (let i = 0; i < expansionCount; i++) {
+            const offset = i * 0.2;
+            const adjustedProgress = max(0, explosionProgress - offset);
+            
+            if (adjustedProgress > 0) {
+                const circleSize = state.eruption.currentSize * (0.5 + i * 0.3);
+                const alpha = 100 * (1 - adjustedProgress);
+                
+                noFill();
+                stroke(255, 100, 0, alpha);
+                strokeWeight(2 - i * 0.5);
+                circle(state.eruption.x, state.eruption.y, circleSize);
+            }
+        }
+        
+        // 7. EFFETTO DI DISTORSIONE (per l'onda d'urto)
+        if (explosionProgress < 0.5) {
+            const distortionProgress = explosionProgress * 2;
+            const distortionAlpha = 80 * (1 - distortionProgress);
+            
+            // Cerchi di distorsione
+            for (let i = 0; i < 3; i++) {
+                const size = state.eruption.currentSize * (0.3 + i * 0.2);
+                noFill();
+                stroke(255, 200, 200, distortionAlpha);
+                strokeWeight(1);
+                drawingContext.setLineDash([5, 5]);
+                circle(state.eruption.x, state.eruption.y, size);
+                drawingContext.setLineDash([]);
+            }
+        }
+        
+        // 8. OVERLAY BIANCO PER EFFETTO LUMINOSO
+        if (explosionProgress < 0.3) {
+            const flashProgress = explosionProgress / 0.3;
+            const flashAlpha = 30 * (1 - flashProgress);
+            
+            fill(255, 255, 255, flashAlpha);
+            noStroke();
+            rect(0, 0, width, height);
+        }
+    }
+    
+    pop();
+}
+
+// 19 - Funzioni easing
+function easeOutBack(x) {
+    const c1 = 1.70158;
+    const c3 = c1 + 1;
+    return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
+}
+
+function easeOutExpo(x) {
+    return x === 1 ? 1 : 1 - Math.pow(2, -10 * x);
+}
+
+// 20 - Loop principale
 function draw() {
     background(CONFIG.colors.background);
+    
     updateLayout();
     
     updateAnimation();
     updateDotAnimations();
+    updateEruptionAnimation();
     
     drawTitle();
     drawStartAnimationButton();
-    drawMainCircle();
-    drawContinentLabels();
+    drawLearnMoreButton(); // Aggiunto qui
+    // ===== AGGIUNTA DELLA LEGENDA =====
+    drawLegend();  // Aggiungo la funzione di disegno della legenda
+    // ===== FINE AGGIUNTA =====
     drawTemporalRangeSelector();
     drawYearSelector();
-    drawInfobox();
+    
+    drawMainCircle();
+    drawContinentLabels();
+    
+    // Disegna l'eruzione SOPRA tutto
+    drawEruption();
     
     checkHover();
+    drawInfobox();
 }
 
-// FUNZIONE: Disegna il titolo principale (su tre righe a sinistra)
+// 21 - Titolo
 function drawTitle() {
-    textSize(96);
+    textSize(80);
     textFont('Helvetica');
     textStyle(BOLD);
     textAlign(LEFT, TOP);
@@ -663,36 +972,32 @@ function drawTitle() {
     text('SIGNIFICANT', CONFIG.layout.marginX, titleY);
 
     fill(CONFIG.colors.text);
-    text('VOLCANIC', CONFIG.layout.marginX, titleY + 90);
+    text('VOLCANIC', CONFIG.layout.marginX, titleY + 75);
      
     fill(CONFIG.colors.accent);
-    text('ERUPTIONS', CONFIG.layout.marginX, titleY + 180);
+    text('ERUPTIONS', CONFIG.layout.marginX, titleY + 150);
     
     textStyle(NORMAL);
 }
 
-// FUNZIONE: Disegna il pulsante Start Animation
+// 22 - Pulsante Start Animation
 function drawStartAnimationButton() {
     const buttonX = CONFIG.layout.marginX;
     const buttonY = CONFIG.layout.buttonStartY;
-    const buttonWidth = 200;
+    const buttonWidth = 250;
     const buttonHeight = CONFIG.layout.controlButtonHeight;
 
-    // Disegna il bordo rosso fine
     stroke(CONFIG.colors.accent);
     strokeWeight(1);
     noFill();
     rect(buttonX, buttonY, buttonWidth, buttonHeight, 5);
 
-    // Disegna il triangolino play o quadratino stop
     fill(CONFIG.colors.accent);
     noStroke();
     
     if (state.isPlaying) {
-        // Disegna quadratino stop
         rect(buttonX + 15, buttonY + 15, 20, 20);
     } else {
-        // Disegna triangolino play
         triangle(
             buttonX + 15, buttonY + 15,
             buttonX + 15, buttonY + 35,
@@ -700,15 +1005,13 @@ function drawStartAnimationButton() {
         );
     }
 
-    // Disegna il testo
     fill(CONFIG.colors.text);
     noStroke();
-    textSize(14);
+    textSize(25);
     textAlign(LEFT, CENTER);
     const buttonText = state.isPlaying ? 'Stop Animation' : 'Start Animation';
     text(buttonText, buttonX + 50, buttonY + 25);
 
-    // Memorizza l'area del pulsante per il click
     state.startButtonArea = {
         x: buttonX,
         y: buttonY,
@@ -717,25 +1020,170 @@ function drawStartAnimationButton() {
     };
 }
 
-// FUNZIONE: Disegna il selettore del time frame, quindi le freccettine
+// ===== NUOVO PULSANTE LEARN MORE =====
+function drawLearnMoreButton() {
+    const buttonWidth = 160;
+    const buttonHeight = CONFIG.layout.controlButtonHeight;
+    // Posizionato in alto a destra con margine
+    const buttonX = width - buttonWidth - CONFIG.layout.marginX;
+    const buttonY = CONFIG.layout.titleStartY + CONFIG.layout.topOffset + 10;
+
+    // Stessa estetica del pulsante Start Animation
+    stroke(CONFIG.colors.accent);
+    strokeWeight(1);
+    noFill();
+    rect(buttonX, buttonY, buttonWidth, buttonHeight, 5);
+
+    // Icona "i" di informazioni (stesso stile)
+    fill(CONFIG.colors.accent);
+    noStroke();
+    
+    // Disegna un cerchio con la "i" dentro
+    push();
+    translate(buttonX + 25, buttonY + 25);
+    // Cerchio
+    stroke(CONFIG.colors.accent);
+    strokeWeight(1);
+    noFill();
+    circle(0, 0, 20);
+    // Testo "i"
+    fill(CONFIG.colors.accent);
+    noStroke();
+    textSize(16);
+    textAlign(CENTER, CENTER);
+    text("i", 0, 0);
+    pop();
+
+    // Testo "Learn More"
+    fill(CONFIG.colors.text);
+    noStroke();
+    textSize(16);
+    textAlign(LEFT, CENTER);
+    text("Learn More", buttonX + 50, buttonY + 25);
+
+    // Memorizza l'area per l'interazione
+    state.learnMoreButtonArea = {
+        x: buttonX,
+        y: buttonY,
+        width: buttonWidth,
+        height: buttonHeight
+    };
+}
+
+// ===== NUOVA FUNZIONE: DISEGNO DELLA LEGENDA =====
+// 23 - Disegno della legenda sotto il bottone Start Animation e sopra il selettore time frame
+function drawLegend() {
+    const startX = CONFIG.layout.marginX;
+    // POSIZIONE: Sotto il bottone Start Animation + 40px di margine
+    const startY = CONFIG.layout.buttonStartY + CONFIG.layout.controlButtonHeight - 280;
+    
+    // Prima riga della legenda: Eruzione vulcanica
+    const line1Y = startY;
+    // Icona: pallino nero con bordo rosso (come i vulcani) - AUMENTATO a 14px
+    fill(0); // Nero per il riempimento
+    stroke(CONFIG.colors.accent); // Rosso per il bordo
+    strokeWeight(8); // Aumentato lo spessore
+    circle(startX + 15, line1Y + 12, 8); // Pallino di 14px di diametro
+    
+    // Testo spiegazione
+    fill(CONFIG.colors.text); // Testo nero
+    noStroke();
+    textSize(16); // Font a 16 punti come richiesto
+    textAlign(LEFT, CENTER);
+    text('Volcanic eruptions', startX + 40, line1Y + 12);
+    
+    // Seconda riga della legenda: Impact range
+    const line2Y = startY + 40; // Aumentato lo spazio tra le righe
+    // Icona: cerchio con freccetta che punta all'interno - AUMENTATO a 18px
+    push();
+    translate(startX + 15, line2Y + 12);
+    // Cerchio vuoto più grande
+    noFill();
+    stroke(CONFIG.colors.accent); // Rosso per il bordo
+    strokeWeight(1); // Aumentato lo spessore
+    circle(0, 0, 25); // Cerchio di 25px di diametro
+    
+    // Freccetta più grande che punta all'interno (da destra verso il centro)
+    stroke(CONFIG.colors.accent);
+    strokeWeight(1); // Aumentato lo spessore della freccia
+    // Linea orizzontale da destra verso il centro
+    line(12.5, 0, 1, 0);
+    // Punta della freccia (triangolo più grande)
+    line(1, 0, 3, -2.5);
+    line(1, 0, 3, 2.5);
+    pop();
+    
+    // Testo spiegazione
+    fill(CONFIG.colors.text); // Testo nero
+    noStroke();
+    textSize(16); // Font a 16 punti come richiesto
+    textAlign(LEFT, CENTER);
+    text('Distribution based on impact range', startX + 40, line2Y + 12);
+    
+// Terza riga della legenda: Ordine temporale
+const line3Y = startY + 80;
+
+push();
+translate(startX + 8, line3Y + 22);
+
+// --- STILE ---
+stroke(CONFIG.colors.accent);
+strokeWeight(1);
+noFill();
+
+// Dimensione totale 25px → raggio ~12px
+const R = 20;
+
+// 1) ANGOLO RETTO (25 px totali)
+line(0, 0, R, 0);     // orizzontale
+line(0, 0, 0, -R);    // verticale
+
+// 2) ARCO INTERNO (1/4 di cerchio dentro l’angolo)
+arc(0, 0, R * 2, R * 2, PI + HALF_PI, TWO_PI);  
+// parte da sinistra (225°) → arriva in basso (270°) → poi verso destra (0°)
+
+// 3) FRECCIA SULL’ARCO (all’interno)
+const ang = TWO_PI;  // punto finale dell’arco
+const ax = cos(ang) * R;
+const ay = sin(ang) * R;
+
+// Corpo freccia
+line(ax - 5, ay, ax, ay);
+
+// Punta freccia
+line(ax, ay, ax - 3, ay - 3);
+line(ax, ay, ax - 3, ay + 3);
+
+pop();
+
+// Testo
+fill(CONFIG.colors.text);
+noStroke();
+textSize(16);
+textAlign(LEFT, CENTER);
+text('Temporal order of eruptions', startX + 40, line3Y + 12);
+
+
+}
+
+// 24 - Selettore periodo
 function drawTemporalRangeSelector() {
     const startX = CONFIG.layout.marginX;
-    const startY = CONFIG.layout.timeframeStartY; // MODIFICATO: posizione più in basso
+    // MODIFICATO: Sposto più in basso per fare spazio alla legenda
+    const startY = CONFIG.layout.timeframeStartY + 40; // Aggiungo 40px per la legenda
     const labelY = startY;
     const controlsY = startY + 40;
 
-    // Etichetta "select time frame:"
     fill(CONFIG.colors.text);
     noStroke();
     textSize(CONFIG.layout.labelFontSize);
     textAlign(LEFT, TOP);
     text('Select time frame:', startX, labelY);
 
-    // Calcola gli anni del periodo selezionato
     let yearString;
     
     if (state.selectedCentury === null) {
-        yearString = 'all centuries';
+        yearString = 'Full range';
     } else {
         const index = CONCENTRIC_YEARS.indexOf(state.selectedCentury);
         if (index !== -1 && index < CONCENTRIC_YEARS.length - 1) {
@@ -743,27 +1191,23 @@ function drawTemporalRangeSelector() {
             const endYear = formatYearShort(CONCENTRIC_YEARS[index + 1]);
             yearString = startYear + ' - ' + endYear;
         } else {
-            yearString = 'all centuries';
+            yearString = 'Full range';
         }
     }
 
-    // Disegna le due frecce a sinistra con quadratino (NERO)
     const leftArrowsX = startX;
     const leftArrowsY = controlsY;
-    drawDoubleArrowWithBox(leftArrowsX, leftArrowsY, 60, 40, '<<', CONFIG.colors.text, true); // true = nero
+    drawDoubleArrowWithBox(leftArrowsX, leftArrowsY, 60, 40, '<<', CONFIG.colors.text, true);
 
-    // Disegna gli anni al centro con più spazio
     const yearX = leftArrowsX + 60; 
-    fill(CONFIG.colors.text); // Nero
+    fill(CONFIG.colors.text);
     textSize(CONFIG.layout.timeframeFontSize);
     textAlign(CENTER, CENTER);
-    text(yearString, yearX + 140, leftArrowsY + 20); 
+    text(yearString, yearX + 140, leftArrowsY + 20);
 
-    // Disegna le due frecce a destra con quadratino (NERO)
     const rightArrowsX = yearX + 280; 
-    drawDoubleArrowWithBox(rightArrowsX, leftArrowsY, 60, 40, '>>', CONFIG.colors.text, true); // true = nero
+    drawDoubleArrowWithBox(rightArrowsX, leftArrowsY, 60, 40, '>>', CONFIG.colors.text, true);
 
-    // Memorizza le aree per il click (aggiornate per le nuove dimensioni)
     state.timeFrameLeftArrows = {
         x: leftArrowsX,
         y: leftArrowsY,
@@ -778,50 +1222,43 @@ function drawTemporalRangeSelector() {
     };
 }
 
-// FUNZIONE: Disegna il selettore dell'anno
+// 25 - Selettore anno
 function drawYearSelector() {
     const startX = CONFIG.layout.marginX;
-    const startY = CONFIG.layout.yearStartY; 
+    // MODIFICATO: Sposto più in basso per mantenere la distanza
+    const startY = CONFIG.layout.yearStartY + 40; // Aggiungo 40px per compensare
     const labelY = startY;
     const controlsY = startY + 40;
 
-    // Etichetta "select year:" in ROSSO
-    fill(CONFIG.colors.accent); // ROSSO
+    fill(CONFIG.colors.accent);
     noStroke();
     textSize(CONFIG.layout.labelFontSize);
     textAlign(LEFT, TOP);
     text('Select year:', startX, labelY);
 
-
-    // Freccia sinistra con quadratino (ROSSO)
     const leftArrowX = startX;
     const leftArrowY = controlsY;
-    drawSingleArrowWithBox(leftArrowX, leftArrowY, 50, 40, '<', CONFIG.colors.accent, false); // false = rosso
+    drawSingleArrowWithBox(leftArrowX, leftArrowY, 60, 40, '<', CONFIG.colors.accent, false);
 
-    // Anno da mostrare (displayedYear, non timelineYear)
-    const yearX = leftArrowX + 70;
+    const yearX = leftArrowX + 100;
     
     let yearText;
     if (state.displayedYear !== null) {
         yearText = formatYear(state.displayedYear);
     } else if (state.availableYears.length > 0) {
-        // Mostra l'anno più vecchio disponibile
         yearText = formatYear(state.availableYears[0]);
     } else {
         yearText = 'No data';
     }
     
-    // Anno sempre in ROSSO
-    fill(CONFIG.colors.accent); // SEMPRE ROSSO
-    textSize(CONFIG.layout.yearFontSize); 
+    fill(CONFIG.colors.accent);
+    textSize(CONFIG.layout.yearFontSize);
     textAlign(CENTER, CENTER);
-    text(yearText, yearX + 110, leftArrowY + 20); 
+    text(yearText, yearX + 110, leftArrowY + 20);
 
-    // Freccia destra con quadratino (ROSSO)
-    const rightArrowX = yearX + 240; // MODIFICATO: aumentato da 200 a 240
-    drawSingleArrowWithBox(rightArrowX, leftArrowY, 50, 40, '>', CONFIG.colors.accent, false); // false = rosso
+    const rightArrowX = yearX + 240;
+    drawSingleArrowWithBox(rightArrowX, leftArrowY, 60, 40, '>', CONFIG.colors.accent, false);
 
-    // Memorizza le aree per il click
     state.yearLeftArrow = {
         x: leftArrowX,
         y: leftArrowY,
@@ -836,78 +1273,70 @@ function drawYearSelector() {
     };
 }
 
-// NUOVA FUNZIONE: Disegna doppia freccia con quadratino (per secoli)
+// 26 - Doppie frecce
 function drawDoubleArrowWithBox(x, y, w, h, arrows, arrowColor, isBlack) {
-    // Disegna il quadratino bianco con bordo
     fill(255);
-    stroke(isBlack ? CONFIG.colors.text : CONFIG.colors.accent); // MODIFICATO: nero per secoli, rosso per anni
+    stroke(isBlack ? CONFIG.colors.text : CONFIG.colors.accent);
     strokeWeight(1);
     rect(x, y, w, h, 5);
     
-    // Disegna le frecce
     fill(arrowColor);
     noStroke();
-    textSize(24);
+    textSize(25);
     textAlign(CENTER, CENTER);
     text(arrows, x + w/2, y + h/2);
 }
 
-// NUOVA FUNZIONE: Disegna singola freccia con quadratino (per anni)
+// 27 - Singole frecce
 function drawSingleArrowWithBox(x, y, w, h, arrow, arrowColor, isBlack) {
-    // Disegna il quadratino bianco con bordo
     fill(255);
-    stroke(isBlack ? CONFIG.colors.text : CONFIG.colors.accent); // MODIFICATO: nero per secoli, rosso per anni
+    stroke(isBlack ? CONFIG.colors.text : CONFIG.colors.accent);
     strokeWeight(1);
     rect(x, y, w, h, 5);
     
-    // Disegna la freccia
     fill(arrowColor);
     noStroke();
-    textSize(24);
+    textSize(25);
     textAlign(CENTER, CENTER);
     text(arrow, x + w/2, y + h/2);
 }
 
-// FUNZIONE: Disegna l'infobox per il vulcano hovered
+// 28 - Info box
 function drawInfobox() {
     if (state.hoveredVolcano) {
         const volcano = state.hoveredVolcano;
         const boxWidth = CONFIG.layout.infoBoxWidth;
         const boxHeight = CONFIG.layout.infoBoxHeight;
 
-        // Posiziona il box vicino al mouse
-        let x = mouseX + 20;
+        let x = mouseX + 25;
         let y = mouseY - boxHeight / 2;
 
-        // Evita che il box esca dallo schermo
         if (x + boxWidth > width) x = mouseX - boxWidth - 20;
         if (y < 0) y = 0;
         if (y + boxHeight > height) y = height - boxHeight;
 
-        // Disegna il rettangolo bianco con bordo nero
         fill(CONFIG.colors.infoBox);
         stroke(CONFIG.colors.infoBoxStroke);
         strokeWeight(1);
         rect(x, y, boxWidth, boxHeight, 5);
 
-        // Testo
         fill(CONFIG.colors.infoBoxText);
         noStroke();
         textSize(16);
         textAlign(LEFT, TOP);
         text(volcano.name, x + 10, y + 10);
-        textSize(14);
+        textSize(16);
         text('Year: ' + formatYear(volcano.year), x + 10, y + 40);
     }
 }
 
-// FUNZIONE: Disegna il cerchio principale con tutti gli elementi
+// 29 - Cerchio principale
 function drawMainCircle() {
     push();
     translate(state.centerX, state.centerY);
     
     if (radialBgImage) {
-        let imageDim = 2;
+        let imageDim = 2 * 0.989;
         let imageSize = CONFIG.layout.maxRadius * imageDim;
         imageMode(CENTER);
         image(radialBgImage, 0, 0, imageSize, imageSize);
@@ -923,7 +1352,7 @@ function drawMainCircle() {
     pop();
 }
 
-// FUNZIONE: Disegna le linee divisorie tra i continenti
+// 30 - Divisori continenti
 function drawContinentDividers() {
     stroke(CONFIG.colors.circle);
     strokeWeight(1);
@@ -938,26 +1367,27 @@ function drawContinentDividers() {
     });
 }
 
-// FUNZIONE: Disegna tutti i vulcani filtrati
+// 31 - Disegna vulcani
 function drawVolcanoes() {
     state.filteredData.forEach(v => {
         let key = `${v.name}-${v.year}-${v.deaths}`;
         let angle = state.volcanoPositions.get(key);
         const angles = state.continentAngles[v.continent];
-
-        if (!angle && angles) angle = angles.mid;
+        
+        if (!angle && angles) {
+            angle = angles.mid;
+            state.volcanoPositions.set(key, angle);
+        }
+        
         if (!angle) return; 
 
         const r = getRadiusForImpact(v.impact);
         const x = cos(angle) * r;
         const y = sin(angle) * r;
 
-        // MODIFICATO: ora l'evidenziazione avviene solo se timelineYear non è null
-        // E se l'anno è stato attivato dall'utente (yearActivatedByUser)
         const isHighlighted = (state.timelineYear !== null && state.yearActivatedByUser && v.year === state.timelineYear);
         const isHovered = (state.hoveredVolcano === v);
 
-        // Gestione animazione selezione
         if (isHighlighted) {
             if (!state.selectionAnimationStart.has(key)) {
                 state.selectionAnimationStart.set(key, millis());
@@ -966,7 +1396,6 @@ function drawVolcanoes() {
             state.selectionAnimationStart.delete(key);
         }
 
-        // Gestione animazione hover
         if (isHovered) {
             if (!state.hoverAnimationStart.has(key)) {
                 state.hoverAnimationStart.set(key, millis());
@@ -975,7 +1404,6 @@ function drawVolcanoes() {
             state.hoverAnimationStart.delete(key);
         }
 
-        // Calcolo progressi animazione
         let selectionProgress = 0;
         if (isHighlighted && state.selectionAnimationStart.has(key)) {
             const startTime = state.selectionAnimationStart.get(key);
@@ -990,17 +1418,15 @@ function drawVolcanoes() {
             hoverProgress = constrain(elapsed / HOVER_ANIMATION_DURATION, 0, 1);
         }
 
-        // Disegna il bagliore se necessario
         if (isHighlighted || isHovered) {
             drawVolcanoGlow(v, x, y, isHighlighted, isHovered, selectionProgress, hoverProgress);
         }
         
-        // Disegna il punto del vulcano con animazione
         drawVolcanoDotAnimated(x, y, isHighlighted, isHovered, v, key);
     });
 }
 
-// MODIFICATA: Disegna il punto del vulcano con animazione
+// 32 - Puntini vulcani animati
 function drawVolcanoDotAnimated(x, y, isHighlighted, isHovered, volcano, key) {
     let entryProgress = 1;
     
@@ -1039,7 +1465,7 @@ function drawVolcanoDotAnimated(x, y, isHighlighted, isHovered, volcano, key) {
     circle(x, y, finalSize);
 }
 
-// MODIFICATA: Disegna l'effetto glow con durata adattabile
+// 33 - Bagliore vulcani
 function drawVolcanoGlow(volcano, x, y, isHighlighted, isHovered, selectionProgress, hoverProgress) {
     let entryProgress = 1;
     const key = `${volcano.name}-${volcano.year}-${volcano.deaths}`;
@@ -1074,7 +1500,7 @@ function drawVolcanoGlow(volcano, x, y, isHighlighted, isHovered, selectionProgr
         glowSize = hoverProgress * baseSize * entryProgress;
         alpha = hoverProgress * baseAlpha * entryProgress;
     } else {
-        return; // non dovrebbe succedere
+        return;
     }
 
     fill(255, 43, 0, alpha);
@@ -1082,8 +1508,7 @@ function drawVolcanoGlow(volcano, x, y, isHighlighted, isHovered, selectionProgr
     circle(x, y, glowSize);
 }
 
-// FUNZIONE: Disegna le etichette dei continenti (SENZA cerchietto, posizione originale fuori dal cerchio)
-// FUNZIONE: Disegna le etichette dei continenti
+// 34 - Etichette continenti
 function drawContinentLabels() {
     CONTINENTS.forEach(cont => {
         const angles = state.continentAngles[cont];
@@ -1107,23 +1532,21 @@ function drawContinentLabels() {
 
         fill(CONFIG.colors.text);
         noStroke();
-        textSize(14);
+        textSize(16);
         
-        // Allineamento orizzontale in base alla posizione angolare
         let horizAlign = LEFT;
-        if (cos(angle) < -0.1) { // Se è sul lato sinistro (coseno negativo)
+        if (cos(angle) < -0.1) {
             horizAlign = RIGHT;
-        } else if (cos(angle) > 0.1) { // Se è sul lato destro (coseno positivo)
+        } else if (cos(angle) > 0.1) {
             horizAlign = LEFT;
-        } else { // Se è circa in alto o in basso (coseno ~0)
+        } else {
             horizAlign = CENTER;
         }
         
-        // Allineamento verticale in base alla posizione angolare
         let vertAlign = CENTER;
-        if (sin(angle) < -0.1) { // Se è nella parte superiore (sin negativo, perché in p5.js l'asse Y va verso il basso)
+        if (sin(angle) < -0.1) {
             vertAlign = BOTTOM;
-        } else if (sin(angle) > 0.1) { // Se è nella parte inferiore (sin positivo)
+        } else if (sin(angle) > 0.1) {
             vertAlign = TOP;
         } else {
             vertAlign = CENTER;
@@ -1134,7 +1557,7 @@ function drawContinentLabels() {
     });
 }
 
-// FUNZIONE: Controlla hover sui vulcani
+// 35 - Controllo hover
 function checkHover() {
     if (state.filteredData.length === 0) {
         state.hoveredVolcano = null;
@@ -1163,9 +1586,14 @@ function checkHover() {
     }
 }
 
-// MODIFICATA: Gestisce il click del mouse
+// 36 - Aggiornamento layout
+function updateLayout() {
+    state.centerX = width * CONFIG.layout.centerXRatio;
+    state.centerY = height / 2 + CONFIG.layout.centerYOffset;
+}
+
+// 37 - Gestione click mouse
 function mousePressed() {
-    // Controllo pulsante Start Animation
     if (state.startButtonArea &&
         mouseX > state.startButtonArea.x &&
         mouseX < state.startButtonArea.x + state.startButtonArea.width &&
@@ -1175,17 +1603,15 @@ function mousePressed() {
         state.isPlaying = !state.isPlaying;
         
         if (state.isPlaying && state.availableYears.length > 0) {
-            state.animationSpeed = TIMELINE_ANIMATION_SPEED_FAST; // MODIFICATO: usa velocità più lenta
+            state.animationSpeed = TIMELINE_ANIMATION_SPEED_FAST;
             state.animationTimer = 0;
             state.isPausedBetweenCycles = false;
             
-            // MODIFICATO: usa animazioni veloci per i dots
             state.useFastAnimations = true;
             startFastDotAnimations();
             
             state.disableDotEntryAnimation = true;
             
-            // Attiva l'anno solo se non è già attivo
             if (!state.yearActivatedByUser) {
                 state.yearActivatedByUser = true;
                 state.currentYearIndex = 0;
@@ -1195,7 +1621,6 @@ function mousePressed() {
         } else if (state.availableYears.length === 0) {
             state.isPlaying = false;
         } else {
-            // MODIFICATO: torna a velocità normale e animazioni normali
             state.animationSpeed = TIMELINE_ANIMATION_SPEED_NORMAL;
             state.useFastAnimations = false;
             state.disableDotEntryAnimation = false;
@@ -1213,7 +1638,6 @@ function mousePressed() {
         return;
     }
 
-    // Controllo frecce sinistre del time frame
     if (state.timeFrameLeftArrows &&
         mouseX > state.timeFrameLeftArrows.x &&
         mouseX < state.timeFrameLeftArrows.x + state.timeFrameLeftArrows.width &&
@@ -1221,15 +1645,12 @@ function mousePressed() {
         mouseY < state.timeFrameLeftArrows.y + state.timeFrameLeftArrows.height) {
         
         if (state.selectedCentury === null) {
-            // Se siamo in "all centuries", vai all'ultimo periodo
             state.selectedCentury = CONCENTRIC_YEARS[CONCENTRIC_YEARS.length - 2];
         } else {
             const currentIndex = CONCENTRIC_YEARS.indexOf(state.selectedCentury);
             if (currentIndex > 0) {
-                // Vai al periodo precedente
                 state.selectedCentury = CONCENTRIC_YEARS[currentIndex - 1];
             } else if (currentIndex === 0) {
-                // Torna a "all centuries"
                 state.selectedCentury = null;
             }
         }
@@ -1237,7 +1658,6 @@ function mousePressed() {
         return;
     }
 
-    // Controllo frecce destre del time frame
     if (state.timeFrameRightArrows &&
         mouseX > state.timeFrameRightArrows.x &&
         mouseX < state.timeFrameRightArrows.x + state.timeFrameRightArrows.width &&
@@ -1245,15 +1665,12 @@ function mousePressed() {
         mouseY < state.timeFrameRightArrows.y + state.timeFrameRightArrows.height) {
         
         if (state.selectedCentury === null) {
-            // Se siamo in "all centuries", vai al primo periodo
             state.selectedCentury = CONCENTRIC_YEARS[0];
         } else {
             const currentIndex = CONCENTRIC_YEARS.indexOf(state.selectedCentury);
             if (currentIndex < CONCENTRIC_YEARS.length - 2) {
-                // Vai al periodo successivo
                 state.selectedCentury = CONCENTRIC_YEARS[currentIndex + 1];
             } else if (currentIndex === CONCENTRIC_YEARS.length - 2) {
-                // Torna a "all centuries"
                 state.selectedCentury = null;
             }
         }
@@ -1261,7 +1678,6 @@ function mousePressed() {
         return;
     }
 
-    // Controllo freccia sinistra anno
     if (state.yearLeftArrow &&
         mouseX > state.yearLeftArrow.x &&
         mouseX < state.yearLeftArrow.x + state.yearLeftArrow.width &&
@@ -1269,23 +1685,19 @@ function mousePressed() {
         mouseY < state.yearLeftArrow.y + state.yearLeftArrow.height &&
         state.availableYears.length > 0) {
         
-        // Attiva l'anno (prima interazione utente)
         state.yearActivatedByUser = true;
-        state.isPlaying = false; // Ferma l'animazione se era attiva
-        state.animationSpeed = TIMELINE_ANIMATION_SPEED_NORMAL; // MODIFICATO: velocità normale
-        state.useFastAnimations = false; // MODIFICATO: animazioni normali
-        state.disableDotEntryAnimation = false; // MODIFICATO: riabilita animazione dots
+        state.isPlaying = false;
+        state.animationSpeed = TIMELINE_ANIMATION_SPEED_NORMAL;
+        state.useFastAnimations = false;
+        state.disableDotEntryAnimation = false;
         
         if (state.timelineYear === null) {
-            // Se non c'è un anno attivato, vai all'ultimo
             state.currentYearIndex = state.availableYears.length - 1;
         } else {
-            // Trova l'indice corrente
             const currentIndex = state.availableYears.indexOf(state.timelineYear);
             if (currentIndex > 0) {
                 state.currentYearIndex = currentIndex - 1;
             } else if (currentIndex === 0) {
-                // Se siamo al primo anno, vai all'ultimo
                 state.currentYearIndex = state.availableYears.length - 1;
             }
         }
@@ -1295,7 +1707,6 @@ function mousePressed() {
         return;
     }
 
-    // Controllo freccia destra anno
     if (state.yearRightArrow &&
         mouseX > state.yearRightArrow.x &&
         mouseX < state.yearRightArrow.x + state.yearRightArrow.width &&
@@ -1303,23 +1714,19 @@ function mousePressed() {
         mouseY < state.yearRightArrow.y + state.yearRightArrow.height &&
         state.availableYears.length > 0) {
         
-        // Attiva l'anno (prima interazione utente)
         state.yearActivatedByUser = true;
-        state.isPlaying = false; // Ferma l'animazione se era attiva
-        state.animationSpeed = TIMELINE_ANIMATION_SPEED_NORMAL; // MODIFICATO: velocità normale
-        state.useFastAnimations = false; // MODIFICATO: animazioni normali
-        state.disableDotEntryAnimation = false; // MODIFICATO: riabilita animazione dots
+        state.isPlaying = false;
+        state.animationSpeed = TIMELINE_ANIMATION_SPEED_NORMAL;
+        state.useFastAnimations = false;
+        state.disableDotEntryAnimation = false;
         
         if (state.timelineYear === null) {
-            // Se non c'è un anno attivato, vai al primo
             state.currentYearIndex = 0;
         } else {
-            // Trova l'indice corrente
             const currentIndex = state.availableYears.indexOf(state.timelineYear);
             if (currentIndex < state.availableYears.length - 1) {
                 state.currentYearIndex = currentIndex + 1;
             } else if (currentIndex === state.availableYears.length - 1) {
-                // Se siamo all'ultimo anno, vai al primo
                 state.currentYearIndex = 0;
             }
         }
@@ -1329,29 +1736,82 @@ function mousePressed() {
         return;
     }
     
-    // MODIFICATO: Aggiunto click sul cerchio per attivare animazione a onde
-    const d = dist(mouseX, mouseY, state.centerX, state.centerY);
-    if (d < CONFIG.layout.maxRadius * 1.5) {
+    const distFromCenter = dist(mouseX, mouseY, state.centerX, state.centerY);
+    if (distFromCenter < CONFIG.layout.maxRadius * 1.5) {
         triggerWaveAnimation();
     }
+
+    let closestVolcano = null;
+    let closestVolcanoPos = null;
+    let minDistance = 25;
+
+    for (let v of state.filteredData) {
+        let key = `${v.name}-${v.year}-${v.deaths}`;
+        
+        if (!state.volcanoPositions.has(key)) continue;
+
+        const angle = state.volcanoPositions.get(key);
+        const radius = getRadiusForImpact(v.impact);
+
+        const x = state.centerX + cos(angle) * radius;
+        const y = state.centerY + sin(angle) * radius;
+
+        const d = dist(mouseX, mouseY, x, y);
+
+        if (d < minDistance) {
+            minDistance = d;
+            closestVolcano = v;
+            closestVolcanoPos = {x, y};
+        }
+    }
+
+    if (closestVolcano && closestVolcanoPos) {
+        console.log("💥 AVVIO ANIMAZIONE STILIZZATA per:", closestVolcano.name);
+        triggerVolcanoEruption(closestVolcano, closestVolcanoPos.x, closestVolcanoPos.y);
+        return;
+    }
+
+    // Controllo per il pulsante Learn More
+if (state.learnMoreButtonArea &&
+    mouseX > state.learnMoreButtonArea.x &&
+    mouseX < state.learnMoreButtonArea.x + state.learnMoreButtonArea.width &&
+    mouseY > state.learnMoreButtonArea.y &&
+    mouseY < state.learnMoreButtonArea.y + state.learnMoreButtonArea.height) {
+    
+    // Qui puoi aggiungere l'azione per "Learn More"
+    // Per esempio, reindirizzare a una pagina di informazioni
+    console.log("Learn More clicked");
+    // window.location.href = "learn-more.html"; // Scommenta per reindirizzare
+    return;
+}
 }
 
-// FUNZIONE: Formatta l'anno in formato esteso
+// 38 - Formattazione anno esteso
 function formatYear(year) {
-    return year + (year < 0 ? ' BC' : ' AD');
+    return Math.abs(year) + (year < 0 ? ' BC' : ' AD');
 }
 
-// FUNZIONE: Formatta l'anno in formato abbreviato
+// 39 - Formattazione anno abbreviato
 function formatYearShort(year) {
     if (year < 0) {
         return Math.abs(year) + ' BC';
+    } else if (year === 0) {
+        return '0';
     } else {
         return year + ' AD';
     }
 }
 
-// FUNZIONE: Gestisce il ridimensionamento della finestra
+// 40 - Ridimensionamento finestra
 function windowResized() {
     resizeCanvas(windowWidth, windowHeight);
     updateLayout();
+}
+
+// 41 - Setup iniziale
+function setup() {
+    let canvas = createCanvas(windowWidth, windowHeight);
+    updateLayout();
+    frameRate(60);
+    console.log("Setup completato. Canvas creato.");
 }
